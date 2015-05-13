@@ -53,6 +53,7 @@ public class MainActivity extends Activity {
 
     private RelativeLayout progressBar;
     private CustomAdapter adapter;
+    private ListView list;
 
 
     @Override
@@ -61,7 +62,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         progressBar = (RelativeLayout) findViewById(R.id.progressBarLayout);
-        ListView list = (ListView) findViewById(R.id.listView);
+        list = (ListView) findViewById(R.id.listView);
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -77,8 +78,6 @@ public class MainActivity extends Activity {
 
         //Set empty adapter, to be filled by AsyncTask
         weatherData = new ArrayList<>();
-        adapter = new CustomAdapter(getApplicationContext(),weatherData);
-        list.setAdapter(adapter);
 
         //Check connectivity
         ConnectivityManager cm=(ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -126,7 +125,6 @@ public class MainActivity extends Activity {
 
             case R.id.action_refresh:
                 weatherData.clear();
-                adapter.notifyDataSetChanged();
                 progressBar.setVisibility(View.VISIBLE);
 
                 loadWeather();
@@ -214,6 +212,15 @@ public class MainActivity extends Activity {
                         publishProgress();
                     }
                 }
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        adapter = new CustomAdapter(getApplicationContext(),weatherData);
+                        list.setAdapter(adapter);
+                    }
+                });
+
             } catch (JSONException e) {
                 Log.e(TAG,"Error retrieving:  "+ city.toUpperCase());
                 e.printStackTrace();
@@ -226,7 +233,6 @@ public class MainActivity extends Activity {
         @Override
         protected void onProgressUpdate(Void... values) {
             super.onProgressUpdate(values);
-            adapter.notifyDataSetChanged();
             if(!weatherData.isEmpty()){
                 progressBar.animate()
                         .translationY(300.0f)
