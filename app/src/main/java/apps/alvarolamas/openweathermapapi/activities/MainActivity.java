@@ -1,7 +1,6 @@
 package apps.alvarolamas.openweathermapapi.activities;
 
 import android.animation.Animator;
-import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.app.Dialog;
@@ -9,7 +8,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Path;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
@@ -20,20 +18,17 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
-import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,10 +43,15 @@ public class MainActivity extends Activity {
     //Logging tag
     private static final String TAG = "MainActivity";
 
+    //EXTRAS Tags
+    public static final String CITY = "city";
+    public static final String ID = "id";
+    public static final String LAT = "lat";
+    public static final String LNG = "lng";
+
     private List<WeatherData> weatherData;
 
     private RelativeLayout progressBar;
-    private ListView list;
     private CustomAdapter adapter;
 
 
@@ -61,16 +61,16 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         progressBar = (RelativeLayout) findViewById(R.id.progressBarLayout);
-        list = (ListView) findViewById(R.id.listView);
+        ListView list = (ListView) findViewById(R.id.listView);
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 WeatherData data = (WeatherData) adapter.getItem(position);
                 Intent details = new Intent(getApplicationContext(),WeatherDetailsActivity.class);
-                details.putExtra("city",data.getCity_name());
-                details.putExtra("id",data.getId());
-                details.putExtra("lat", data.getLat());
-                details.putExtra("lon", data.getLon());
+                details.putExtra(CITY,data.getCity_name());
+                details.putExtra(ID,data.getId());
+                details.putExtra(LAT, data.getLat());
+                details.putExtra(LNG, data.getLon());
                 startActivity(details,ActivityOptions.makeSceneTransitionAnimation(MainActivity.this).toBundle());
             }
         });
@@ -98,11 +98,7 @@ public class MainActivity extends Activity {
     private void loadWeather()
     {
         String [] cities = getResources().getStringArray(R.array.cities);
-        //for(int i=0;i<cities.length;i++)
-        //{
-            //Start AsyncTask
-            new GetWeatherData().execute(cities);
-        //}
+        new GetWeatherData().execute(cities);
     }
 
     @Override
@@ -127,14 +123,13 @@ public class MainActivity extends Activity {
                 dialog.setContentView(R.layout.help_item);
                 dialog.show();
                 return true;
+
             case R.id.action_refresh:
                 weatherData.clear();
                 adapter.notifyDataSetChanged();
-
                 progressBar.setVisibility(View.VISIBLE);
 
                 loadWeather();
-
                 return true;
         }
 
@@ -152,18 +147,25 @@ public class MainActivity extends Activity {
 
         @Override
         protected Void doInBackground(String... params) {
-            String city=new String();
+            String city="";
             try {
                 for (int i=0;i<params.length;i++) {
 
                     city = params[i];
-                    DefaultHttpClient httpClient = new DefaultHttpClient();
-                    HttpGet httpGet = new HttpGet(defaultUrl + city);
-                    HttpEntity httpResponse = httpClient.execute(httpGet).getEntity();
-                    String response = EntityUtils.toString(httpResponse);
+                    URL url = new URL(defaultUrl + city);
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setReadTimeout(10000); //ms
+                    conn.setConnectTimeout(15000); //ms
+                    conn.setRequestMethod("GET");
 
-                    Log.d(TAG, city);
-                    Log.i(TAG, response);
+                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        sb.append(line+"\n");
+                    }
+                    br.close();
+                    String response = sb.toString();
 
                     //Parse Response and add to the list
                     JSONObject jsonObj = new JSONObject(response);
@@ -173,7 +175,7 @@ public class MainActivity extends Activity {
                     boolean alreadyStored = false;
                     for (int j = 0; i < weatherData.size(); i++) {
                         //Do not restore this item again
-                        if (weatherData.get(i).getId() == id) {
+                        if (weatherData.get(j).getId() == id) {
                             alreadyStored = true;
                         }
                     }
@@ -200,8 +202,8 @@ public class MainActivity extends Activity {
                         JSONObject jsonWeather = jsonArrayWeather.getJSONObject(0);
                         String icon_name = jsonWeather.getString("icon");
 
-                        URL url = new URL("http://openweathermap.org/img/w/" + icon_name + ".png");
-                        Bitmap icon = BitmapFactory.decodeStream(url.openConnection().getInputStream());
+                        URL icon_url = new URL("http://openweathermap.org/img/w/" + icon_name + ".png");
+                        Bitmap icon = BitmapFactory.decodeStream(icon_url.openConnection().getInputStream());
 
                         WeatherData data_item = new WeatherData(city_name, id, lon, lat,
                                 current_t, wind_speed, wind_direction,
@@ -214,8 +216,6 @@ public class MainActivity extends Activity {
                 }
             } catch (JSONException e) {
                 Log.e(TAG,"Error retrieving:  "+ city.toUpperCase());
-                e.printStackTrace();
-            } catch (ClientProtocolException e) {
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();

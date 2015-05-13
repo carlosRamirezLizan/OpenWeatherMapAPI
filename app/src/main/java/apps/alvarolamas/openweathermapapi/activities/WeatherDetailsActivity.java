@@ -1,22 +1,16 @@
 package apps.alvarolamas.openweathermapapi.activities;
 
-import android.animation.Animator;
 import android.app.Activity;
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.Window;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -25,18 +19,16 @@ import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +42,7 @@ public class WeatherDetailsActivity extends Activity implements OnMapReadyCallba
     //Logging tag
     private static final String TAG = "WeatherDetail";
 
-    //Bearing constants
+    //Bearing constants, Map orientation
     private static final int DIRECTION_NORTH = 0;
     private static final int DIRECTION_EAST = 90;
     private static final int DIRECTION_SOUTH = 180;
@@ -62,7 +54,6 @@ public class WeatherDetailsActivity extends Activity implements OnMapReadyCallba
 
     private RelativeLayout progressBar;
     private GoogleMap map;
-    private ListView details_list;
     private CustomDetailsAdapter adapter;
 
 
@@ -74,18 +65,16 @@ public class WeatherDetailsActivity extends Activity implements OnMapReadyCallba
 
         //Gettin' extras
         Bundle extras = getIntent().getExtras();
-        city = extras.getString("city");
+        city = extras.getString(MainActivity.CITY);
         setTitle(city);
-        int id = extras.getInt("id");
-        lat = extras.getDouble("lat");
-        lon = extras.getDouble("lon");
+        int id = extras.getInt(MainActivity.ID);
+        lat = extras.getDouble(MainActivity.LAT);
+        lon = extras.getDouble(MainActivity.LNG);
 
-        details_list = (ListView)findViewById(R.id.detail_listView);
+        ListView details_list = (ListView)findViewById(R.id.detail_listView);
         details = new ArrayList<>();
         adapter = new CustomDetailsAdapter(WeatherDetailsActivity.this,details);
         details_list.setAdapter(adapter);
-
-        ((TextView) findViewById(R.id.detail_tv)).setText(city);
 
         progressBar = (RelativeLayout) findViewById(R.id.progressBarLayout1);
         MapFragment mapFragment = (MapFragment) getFragmentManager().findFragmentById(R.id.map);
@@ -136,30 +125,33 @@ public class WeatherDetailsActivity extends Activity implements OnMapReadyCallba
         //latlng, zoom, tilt, bearing
         CameraPosition pos = new CameraPosition(new LatLng(lat,lon),5,DIRECTION_NORTH,1);
         map.animateCamera(CameraUpdateFactory.newCameraPosition(pos));
-        Marker marker = map.addMarker(new MarkerOptions()
+        map.addMarker(new MarkerOptions()
                 .position(new LatLng(lat, lon))
                 .title(city));
+        //addMarker returns a marker, it can be used to:
         //marker.showInfoWindow();
     }
 
     private class GetWeatherDetails extends AsyncTask<Integer,Void,Void>
     {
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-        }
-
         @Override
         protected Void doInBackground(Integer... params) {
             int id = params[0];
             try {
-                DefaultHttpClient client = new DefaultHttpClient();
-                HttpGet get = new HttpGet("http://api.openweathermap.org/data/2.5/forecast?id="+id);
-                Log.d(TAG,"Response retrieved");
-                HttpEntity httpResponse = client.execute(get).getEntity();
-                String response = EntityUtils.toString(httpResponse);
-                Log.d(TAG,"Response retrieved");
+                URL url = new URL("http://api.openweathermap.org/data/2.5/forecast?id="+id);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setReadTimeout(10000 /* milliseconds */);
+                conn.setConnectTimeout(15000 /* milliseconds */);
+                conn.setRequestMethod("GET");
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) {
+                    sb.append(line+"\n");
+                }
+                br.close();
+                String response = sb.toString();
 
                 JSONArray jsonArray = new JSONObject(response).getJSONArray("list");
                 for(int i=0; i<16;i++)
@@ -168,23 +160,23 @@ public class WeatherDetailsActivity extends Activity implements OnMapReadyCallba
                     String time = detail.getString("dt_txt");
                     Double temp = detail.getJSONObject("main").getDouble("temp");
                     String icon_name = detail.getJSONArray("weather").getJSONObject(0).getString("icon");
-                    URL url = new URL("http://openweathermap.org/img/w/"+icon_name+".png");
-                    Bitmap icon = BitmapFactory.decodeStream(url.openConnection().getInputStream());
+                    URL icon_url = new URL("http://openweathermap.org/img/w/"+icon_name+".png");
+                    Bitmap icon = BitmapFactory.decodeStream(icon_url.openConnection().getInputStream());
                     details.add(new WeatherDetail(city,time,temp,icon));
                     Log.i(TAG, details.get(i).toString());
+
+                    publishProgress();
                 }
 
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (JSONException e) {
+            } catch (IOException | JSONException e) {
                 e.printStackTrace();
             }
             return null;
         }
 
         @Override
-        protected void onPostExecute(Void aVoid) {
-            super.onPostExecute(aVoid);
+        protected void onProgressUpdate(Void... values) {
+            super.onProgressUpdate(values);
             adapter.notifyDataSetChanged();
             if(!details.isEmpty())
             {
