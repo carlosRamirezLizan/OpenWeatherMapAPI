@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string-array name="cities">
+        <item>Madrid,es</item>
+        <item>London,uk</item>
+        <item>Paris,fr</item>
+        <item>Berlin,de</item>
+        <item>Brasilia,br</item>
+        <item>Moscow,ru</item>
+        <item>Rome,it</item>
+        <item>Vienna,at</item>
+        <item>Beijing,cn</item>
+        <item>Prague,cz</item>
+    </string-array>
+
+</resources>

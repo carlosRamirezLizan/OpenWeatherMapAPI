@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="yellow">#ffe08b</color>
+    <color name="orange">#ff8a00</color>
+    <color name="red">#ff0000</color>
+    <color name="green">#47a700</color>
+
+
+    <color name="colorPrimary">#2196f3</color> <!--Blue 500-->
+    <color name="colorPrimaryDark">#0d47a1</color> <!--Blue 900 -->
+    <color name="colorAccent">#ff5252</color> <!-- Red A200 -->
+    <color name="windowBackground">#e3f2fd</color> <!-- Blue 50 -->
+    <color name="colorPrimary100">#bbdefb</color> <!-- Blue 100 -->
+    <color name="colorPrimary200">#90caf9</color> <!-- Blue 200-->
+    <color name="colorPrimary300">#64b5f6</color> <!-- Blue 300 -->
+    <color name="cardBckg">#e1f5fe</color>
+
+</resources>
